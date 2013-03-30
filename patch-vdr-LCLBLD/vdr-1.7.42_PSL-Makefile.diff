@@ -1,0 +1,48 @@
+--- vdr-1.7.42_orig/Makefile	2013-03-11 16:01:01.000000000 +0100
++++ vdr-1.7.42/Makefile	2013-03-29 17:41:01.491966000 +0100
+@@ -187,6 +187,11 @@
+ 	@mkdir -p $(DESTDIR)$(LOCDIR)
+ 	cp -r $(LOCALEDIR)/* $(DESTDIR)$(LOCDIR)
+ 
++# The vdr-psl-*.pc files (for plugins using PSLs):
++
++psl-pc:
++	@(for i in `ls -A -I ".*" PLUGINS/src | grep psl-`; do $(MAKE) --no-print-directory -C "PLUGINS/src/$$i" LIBDIR="$(PLUGINDIR)/lib" VDRDIR="$(CWD)" pc-file; ln -fs PLUGINS/src/$$i/vdr-$$i.pc .; done)
++
+ # The 'include' directory (for plugins):
+ 
+ include-dir:
+@@ -194,14 +199,15 @@
+ 	@(cd include/vdr; for i in ../../*.h; do ln -fs $$i .; done)
+ 	@mkdir -p include/libsi
+ 	@(cd include/libsi; for i in ../../libsi/*.h; do ln -fs $$i .; done)
++	@(cd include/vdr; for i in `ls -A -I ".*" ../../PLUGINS/src | grep psl-`; do ln -fs ../../PLUGINS/src/$$i/include/$$i.h .; mkdir -p $$i; cd $$i; for j in ../../../PLUGINS/src/$$i/*.h; do ln -fs $$j .; done; done)
+ 
+ # Plugins:
+ 
+-plugins: include-dir vdr.pc
++plugins: include-dir vdr.pc psl-pc
+ 	@failed="";\
+ 	noapiv="";\
+ 	oldmakefile="";\
+-	for i in `ls $(PLUGINDIR)/src | grep -v '[^a-z0-9]'`; do\
++	for i in `ls $(PLUGINDIR)/src | grep -v '[^a-z0-9\-]' | grep psl-` `ls -A -I "psl-*" $(PLUGINDIR)/src | grep -v '[^a-z0-9]'`; do\
+ 	    echo; echo "*** Plugin $$i:";\
+ 	    # No APIVERSION: Skip\
+ 	    if ! grep -q "\$$(LIBDIR)/.*\$$(APIVERSION)" "$(PLUGINDIR)/src/$$i/Makefile" ; then\
+@@ -220,6 +226,7 @@
+ 	    INCLUDES="-I$(CWD)/include"\
+ 	    $(MAKE) --no-print-directory -C "$(PLUGINDIR)/src/$$i" VDRDIR="$(CWD)" || failed="$$failed $$i";\
+ 	    if [ -n "$(LCLBLD)" ] ; then\
++	       (cd $(PLUGINDIR)/src/$$i; for l in `find -name 'libpsl-*' -o -name 'lib$$i-*.so'`; do install $$l $(LIBDIR)/`basename $$l`.$(APIVERSION).so; done);\
+ 	       (cd $(PLUGINDIR)/src/$$i; for l in `find -name 'libvdr-*.so' -o -name 'lib$$i-*.so'`; do install $$l $(LIBDIR)/`basename $$l`.$(APIVERSION); done);\
+ 	       if [ -d $(PLUGINDIR)/src/$$i/po ]; then\
+ 	          for l in `ls $(PLUGINDIR)/src/$$i/po/*.mo`; do\
+@@ -244,6 +251,7 @@
+ clean-plugins:
+ 	@for i in `ls $(PLUGINDIR)/src | grep -v '[^a-z0-9]'`; do $(MAKE) --no-print-directory -C "$(PLUGINDIR)/src/$$i" clean; done
+ 	@-rm -f $(PLUGINDIR)/lib/lib*-*.so.$(APIVERSION)
++	@-rm -rf vdr-psl-*.pc
+ 
+ # Install the files (note that 'install-pc' must be first!):
+ 
